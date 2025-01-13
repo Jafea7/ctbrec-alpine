@@ -1,0 +1,40 @@
+#!/usr/bin/with-contenv sh
+echo "`date '+%T.%3N'` [init - Environment]"
+env
+
+# Default UID/GID to 911 if none supplied
+echo "`date '+%T.%3N'` [init - UID/GID]"
+PUID=${PUID:-1000}
+PGID=${PGID:-1000}
+# Modify the existing user
+groupmod -o -g "$PGID" ctbrec
+usermod -o -u "$PUID" ctbrec
+
+# Check WINK required
+echo "`date '+%T.%3N'` [init - Check WINK]"
+if [ "$(echo "$WINK" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "$WINK" = "1" ]; then
+  export CTBVER="$CTBWNK"
+fi
+echo "`date '+%T.%3N'` [init - v$CTBVER]"
+
+# Copy default config
+echo "`date '+%T.%3N'` [init - Defaults]"
+if [ ! -e /app/config/$CTBVER/server.json ]; then
+  mkdir -p /app/config/$CTBVER
+  cp -n /app/defaults/server.json /app/config/$CTBVER/
+fi
+
+# Symlink ffmpeg
+mkdir -p /app/ffmpeg /app/media
+ln -s "$(which ffmpeg)" "/app/ffmpeg"
+ln -s "$(which ffprobe)" "/app/ffprobe"
+
+# Enable post-processing by default
+echo "`date '+%T.%3N'` [init - DoPP]"
+if [ ! -f "/app/config/$CTBVER/dopp" ]; then
+  touch "/app/config/$CTBVER/dopp"
+fi
+
+# Set owner and perms
+echo "`date '+%T.%3N'` [init - Owner and perms]"
+/app/fixperms /app ctbrec ctbrec 775 764

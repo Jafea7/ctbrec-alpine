@@ -1,0 +1,13 @@
+#!/usr/bin/with-contenv sh
+echo "`date '+%T.%3N'` [svc - Start CTBRec]"
+env
+
+cd /app
+# Check WINK required
+echo "`date '+%T.%3N'` [svc - Check WINK]"
+if [ "$(echo "$WINK" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "$WINK" = "1" ]; then
+  export CTBVER="$CTBWNK"
+fi
+echo "`date '+%T.%3N'` [svc - v$CTBVER]"
+exec \
+    s6-setuidgid ctbrec java -Xms256m -Xmx1g -cp "/app/ctbrec-server-$CTBVER-final.jar" -Dfile.encoding=utf-8 -Dctbrec.config.dir=/app/config -Dctbrec.config=server.json ctbrec.recorder.server.HttpServer

@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Check if the correct number of arguments are provided
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $0 <directory> <user> <group> <dir-permissions> <file-permissions>"
+    exit 1
+fi
+
+# Assign input parameters to variables
+DIR="$1"
+USER="$2"
+GROUP="$3"
+DIR_PERMS="$4"
+FILE_PERMS="$5"
+
+# Check if the directory exists
+if [ ! -d "$DIR" ]; then
+    echo "Directory $DIR does not exist!"
+    exit 1
+fi
+
+# Change ownership of directory and files recursively
+chown -R "$USER:$GROUP" "$DIR"
+
+# Set directory permissions recursively
+find "$DIR" -type d -exec chmod "$DIR_PERMS" {} \;
+
+# Set file permissions recursively
+find "$DIR" -type f -exec chmod "$FILE_PERMS" {} \;
+
+echo "Permissions updated for directory: $DIR"

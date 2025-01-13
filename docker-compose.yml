@@ -1,0 +1,15 @@
+services:
+  ctbrec:
+    image: jafea7/ctbrec-alpine:latest
+    container_name: ctbrec
+    environment:
+      - TZ=${TZ}
+      - PGID=${PGID}
+      - PUID=${PUID}
+    volumes:
+      - "${CONFIG}:/app/config"
+      - "${MEDIA}:/app/media"
+    ports:
+      - 18080:8080
+      - 18443:8443
+    restart: "unless-stopped"

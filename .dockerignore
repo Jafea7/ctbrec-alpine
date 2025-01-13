@@ -1,0 +1,8 @@
+.git/
+extras/
+.env
+.gitattributes
+docker-compose.yml
+Dockerfile
+LICENSE
+README.md
