@@ -41,9 +41,7 @@ CTBRec is a streaming media recorder.
 - `send2http.sh` has not been tested.
 - The `reclean.py`, `reclaim.py`, `send2ntfy.py` Python scripts have not been tested.
 - The `healthcheck.sh` reads the httpPort value from the server.json file, so if you need to change it due to a clash the healthcheck will still work.
-- The contact sheet is now 3840px wide and consists of 10x9 images, (compensate a little for lack of timecodes).
-
-  It does NOT burn in timecodes due to limitations of ffmpeg in Alpine's repo, DO NOT enable them, they will fail.
+- The contact sheet is now 3840px wide and consists of 10x9 images, (timecode burn-in working again - thanks @Tactic).
 
 **NOTE:** Do not just drop your old config in and expect it to work, you'll be ignored.
 
@@ -291,8 +289,6 @@ These post-processing steps will be set in the default config:
   - Rename to the following: `"$sanitize(${modelName})_$sanitize(${siteName})_$format(${localDateTime},yyyyMMdd-hhmmss).${fileSuffix}"`;
   - Create contact sheet: 10x9 images, 3840px wide, same file name format as the Rename step.
 
-    **NOTE:** Timecodes are NOT burnt into the contact sheet, the version of ffmpeg in the Alpine repo doesn't support them.
-
 
 ## Extras
 
@@ -454,7 +450,7 @@ docker run -d \
     --name=ctbrec-alpine \
     -p 8080:8080 \
     -p 8443:8443 \
-    -v /home/ctbrec/media:/app/captures:rw \
+    -v /home/ctbrec/media:/app/media:rw \
     -v /home/ctbrec/.config/ctbrec:/app/config:rw \
     -e TZ=Australia/Sydney \
     -e PGID=1000 \
@@ -483,7 +479,7 @@ services:
       - "8443:8443"
     volumes:
       - "/home/ctbrec/.config/ctbrec:/app/config:rw"
-      - "/home/ctbrec/media:/app/captures:rw"
+      - "/home/ctbrec/media:/app/media:rw"
     restart: "unless-stopped"
 ```
 
@@ -621,7 +617,7 @@ docker run -d \
     --name=ctbrec-alpine \
     -p 8080:8080 \
     -p 8443:8443 \
-    -v /home/ctbrec/media:/app/captures:rw \
+    -v /home/ctbrec/media:/app/media:rw \
     -v /home/ctbrec/.config/ctbrec:/app/config:rw \
     -e TZ=Australia/Sydney \
     -e PGID=1000 \
@@ -645,7 +641,7 @@ services:
       - "8443:8443"
     volumes:
       - "/home/ctbrec/.config/ctbrec:/app/config:rw"
-      - "/home/ctbrec/media:/app/captures:rw"
+      - "/home/ctbrec/media:/app/media:rw"
     restart: "unless-stopped"
 ```
 
@@ -660,7 +656,7 @@ docker run -d \
     --name=ctbrec-alpine \
     -p 8080:8080 \
     -p 8443:8443 \
-    -v /home/ctbrec/media:/app/captures:rw \
+    -v /home/ctbrec/media:/app/media:rw \
     -v /home/ctbrec/.config/ctbrec:/app/config:rw \
     -e TZ=Australia/Sydney \
     -e PGID=1000 \
@@ -686,7 +682,7 @@ services:
       - "8443:8443"
     volumes:
       - "/home/ctbrec/.config/ctbrec:/app/config:rw"
-      - "/home/ctbrec/media:/app/captures:rw"
+      - "/home/ctbrec/media:/app/media:rw"
     restart: "unless-stopped"
 ```
 
@@ -706,7 +702,7 @@ docker run -d \
     --name=ctbrec-alpine \
     -p 8080:8080 \
     -p 8443:8443 \
-    -v /home/ctbrec/media:/app/captures:rw \
+    -v /home/ctbrec/media:/app/media:rw \
     -v /home/ctbrec/.config/ctbrec:/app/config:rw \
     -e TZ=Australia/Sydney \
     -e PGID=1000 \
@@ -736,7 +732,7 @@ services:
       - "8443:8443"
     volumes:
       - "/home/ctbrec/.config/ctbrec:/app/config:rw"
-      - "/home/ctbrec/media:/app/captures:rw"
+      - "/home/ctbrec/media:/app/media:rw"
     restart: "unless-stopped"
 ```
 
@@ -770,7 +766,7 @@ docker run -d \
     --name=ctbrec-alpine \
     -p 8080:8080 \
     -p 8443:8443 \
-    -v /home/ctbrec/media:/app/captures:rw \
+    -v /home/ctbrec/media:/app/media:rw \
     -v /home/ctbrec/.config/ctbrec:/app/config:rw \
     -e TZ=Australia/Sydney \
     -e PGID=1000 \
@@ -798,7 +794,7 @@ services:
       - "8443:8443"
     volumes:
       - "/home/ctbrec/.config/ctbrec:/app/config:rw"
-      - "/home/ctbrec/media:/app/captures:rw"
+      - "/home/ctbrec/media:/app/media:rw"
     restart: "unless-stopped"
 ```
 
