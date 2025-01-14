@@ -8,7 +8,7 @@ socmed="$(echo "$socmed" | tr '[:lower:]')"
 shift
 file="$1"
 sheet="${file%.*}.jpg"
-length=$( /app/ffmpeg/ffmpeg -i "$file" 2>&1 | grep "Duration" | cut -d ' ' -f 4 | sed s/,// | sed 's@\..*@@g' )
+length=$(ffprobe "$file" -v quiet -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal | cut -d '.' -f 1 | awk -F: '{ printf "%02d:%02d:%02d\n", $1, $2, $3 }')
 shift
 
 if [ -z "$1" ]; then
