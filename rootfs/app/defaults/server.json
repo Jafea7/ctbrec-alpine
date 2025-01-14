@@ -121,7 +121,7 @@
     "enabled" : true,
     "config" : {
       "padding" : "1",
-      "burn_in_timestamp" : "false",
+      "burn_in_timestamp" : "true",
       "filename" : "$sanitize(${modelName})_$sanitize(${siteName})_$format(${localDateTime},yyyyMMdd-HHmmss).jpg",
       "columns" : "10",
       "background" : "0x333333",
