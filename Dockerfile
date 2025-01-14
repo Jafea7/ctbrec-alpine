@@ -19,7 +19,7 @@ COPY rootfs/ /
 
 # Install necessary packages
 RUN apk add --update --no-cache \
-    tar xz jq ffmpeg curl \
+    tar xz jq ffmpeg curl ttf-dejavu \
     openjdk21-jre-headless \
     tzdata python3 py3-urllib3 py3-requests \
     shadow 7zip && \
