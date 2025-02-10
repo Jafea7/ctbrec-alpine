@@ -17,14 +17,55 @@ if [ "$(echo "$WINK" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "$WINK" = "1
 fi
 echo "`date '+%T.%3N'` [init - v$CTBVER]"
 
-# Copy default config
-echo "`date '+%T.%3N'` [init - Defaults]"
-if [ ! -e /app/config/$CTBVER/server.json ]; then
-  mkdir -p /app/config/$CTBVER
-  cp -n /app/defaults/server.json /app/config/$CTBVER/
+# Pre-existing config check
+echo "`date '+%T.%3N'` [init - Config check]"
+CONFIG_DIR="/app/config"
+LATEST_VERSION=""
+
+# Loop through each subdirectory inside config
+for dir in "$CONFIG_DIR"/*/; do
+  if [ -d "$dir" ]; then  # Check if it's a directory
+    dir=${dir%/}  # Remove trailing slash
+    version=${dir##*/}  # Extract the version number
+
+    # If LATEST_VERSION is empty, assign the first found version
+    if [ -z "$LATEST_VERSION" ]; then
+      LATEST_VERSION="$version"
+    else
+      # Compare versions numerically (splitting major.minor.patch)
+      IFS='.' read -r major1 minor1 patch1 <<EOF
+$LATEST_VERSION
+EOF
+      IFS='.' read -r major2 minor2 patch2 <<EOF
+$version
+EOF
+
+      # Default missing values to 0
+      minor1=${minor1:-0}
+      patch1=${patch1:-0}
+      minor2=${minor2:-0}
+      patch2=${patch2:-0}
+
+          # Compare major, then minor, then patch
+      if [ "$major2" -gt "$major1" ] || 
+        { [ "$major2" -eq "$major1" ] && [ "$minor2" -gt "$minor1" ]; } ||
+        { [ "$major2" -eq "$major1" ] && [ "$minor2" -eq "$minor1" ] && [ "$patch2" -gt "$patch1" ]; }; then
+          LATEST_VERSION="$version"
+      fi
+    fi
+  fi
+done
+
+if [ ! -n "$LATEST_VERSION" ]; then
+  # Pre-existing config doesn't exist
+  if [ ! -e /app/config/$CTBVER/server.json ]; then
+    mkdir -p /app/config/$CTBVER
+    cp -n /app/defaults/server.json /app/config/$CTBVER/
+  fi
 fi
 
 # Symlink ffmpeg
+echo "`date '+%T.%3N'` [init - Symlinks]"
 mkdir -p /app/ffmpeg /app/media
 ln -s "$(which ffmpeg)" "/app/ffmpeg"
 ln -s "$(which ffprobe)" "/app/ffprobe"
