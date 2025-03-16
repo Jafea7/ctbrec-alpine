@@ -2,6 +2,8 @@
 extras/
 .env
 .gitattributes
+.gitignore
+html-old.7z
 docker-compose.yml
 Dockerfile
 LICENSE
