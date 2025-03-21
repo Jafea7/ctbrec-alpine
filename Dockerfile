@@ -36,7 +36,7 @@ RUN apk add --update --no-cache \
     rm /tmp/s6-overlay-*.tar.xz && \
     # Check if the 'users' group exists, and if not, create it
     if ! getent group users > /dev/null 2>&1; then addgroup -g 1000 users; fi && \
-    # Add use 'ctbrec' to users
+    # Add user 'ctbrec' to users
     adduser -u 1000 -D -h /app -s /bin/false ctbrec && \
     adduser ctbrec users && \
     # Create config and media to ensure they exist
