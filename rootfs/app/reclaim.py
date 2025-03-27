@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/python3
 # Deletes oldest files to recover the defined minimum space.
 
 from ctbrec import CtbRec

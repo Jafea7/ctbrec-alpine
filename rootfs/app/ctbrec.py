@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """ Simple python client for programmatic interaction with the CTBREC server
 
 ###################################################################################

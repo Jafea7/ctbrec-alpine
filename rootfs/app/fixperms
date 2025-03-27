@@ -28,4 +28,7 @@ find "$DIR" -type d -exec chmod "$DIR_PERMS" {} \;
 # Set file permissions recursively
 find "$DIR" -type f -exec chmod "$FILE_PERMS" {} \;
 
+# set +x on .sh and .py
+find "$DIR" -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
+
 echo "Permissions updated for directory: $DIR"

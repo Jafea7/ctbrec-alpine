@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/python3
 # Deletes orphaned recording metadata files every time it's run.
 
 import os

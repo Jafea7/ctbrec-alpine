@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/python3
 
 # send2ntfy.py ${absolutePath}
 # Sends the contact sheet to a NTFY server plus Pin and Delete actions.
