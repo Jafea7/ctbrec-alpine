@@ -39,7 +39,6 @@ CTBRec is a streaming media recorder.
 - **The directory where the recordings are saved has CHANGED to `/app/media`, map it accordingly.**
 - `send2discord.sh`, `send2email.sh`, and `send2telegram.sh` have been combined into one script, `send2what.sh`.
 - `send2http.sh` has not been tested.
-- The `reclean.py`, `reclaim.py`, `send2ntfy.py` Python scripts have not been tested.
 - The `healthcheck.sh` reads the httpPort value from the server.json file, so if you need to change it due to a clash the healthcheck will still work.
 - The contact sheet is now 3840px wide and consists of 10x9 images, (timecode burn-in working again - thanks @Tactic).
 
