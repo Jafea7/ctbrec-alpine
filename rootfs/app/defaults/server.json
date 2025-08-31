@@ -108,7 +108,8 @@
     "enabled" : true,
     "config" : {
       "ffmpeg.args" : "-c:v copy -c:a copy -y -f matroska",
-      "file.ext" : "mkv"
+      "file.ext" : "mkv",
+      "preffmpeg.args" : ""
     }
   }, {
     "type" : "ctbrec.recorder.postprocessing.Rename",
