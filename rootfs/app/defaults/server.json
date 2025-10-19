@@ -135,6 +135,7 @@
   "proxyPort" : null,
   "proxyType" : "DIRECT",
   "proxyUser" : null,
+  "pacUrl": null,
   "recentlyWatched" : true,
   "recordLaterTableColumnOrder" : [ ],
   "recordLaterTableColumnVisibility" : { },
