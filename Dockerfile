@@ -10,8 +10,6 @@ ARG S6_OVERLAY_VERSION=3.2.0.2
 
 ARG CTBVER
 ENV CTBVER=${CTBVER}
-ARG CTBWNK
-ENV CTBWNK=${CTBWNK}
 ENV HOME=/app
 
 # Copy the rootfs layout including files

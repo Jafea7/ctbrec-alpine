@@ -102,7 +102,6 @@ of this parameter has the format `<VARIABLE_NAME>=<VALUE>`.
 |`TZ`| [TimeZone] of the container.  Timezone can also be set by mapping `/etc/localtime` between the host and the container. | `UTC` |
 |`PGID`| Group ID that will be used to run CTBRec within the container. | `1000` |
 |`PUID`| User ID that will be used to run CTBRec within the container. | `1000` |
-|`WINK`| Use WinkRU server, set to `true` if required. | `false` |
 
 ### Data Volumes
 
