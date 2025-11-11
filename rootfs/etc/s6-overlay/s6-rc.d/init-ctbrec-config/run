@@ -11,10 +11,10 @@ groupmod -o -g "$PGID" ctbrec
 usermod -o -u "$PUID" ctbrec
 
 # Check WINK required
-echo "`date '+%T.%3N'` [init - Check WINK]"
-if [ "$(echo "$WINK" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "$WINK" = "1" ]; then
-  export CTBVER="$CTBWNK"
-fi
+#echo "`date '+%T.%3N'` [init - Check WINK]"
+#if [ "$(echo "$WINK" | tr '[:upper:]' '[:lower:]')" = "true" ] || [ "$WINK" = "1" ]; then
+#  export CTBVER="$CTBWNK"
+#fi
 echo "`date '+%T.%3N'` [init - v$CTBVER]"
 
 # Pre-existing config check
