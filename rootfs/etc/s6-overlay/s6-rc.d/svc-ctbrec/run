@@ -10,4 +10,4 @@ cd /app
 #fi
 echo "`date '+%T.%3N'` [svc - v$CTBVER]"
 exec \
-    s6-setuidgid ctbrec java -Xms1g -Xmx1g -cp "/app/ctbrec-server-$CTBVER-docker.jar" -Dfile.encoding=utf-8 -Dctbrec.config.dir=/app/config -Dctbrec.config=server.json ctbrec.recorder.server.HttpServer
+    s6-setuidgid ctbrec java -Xms256m -Xmx1g -cp "/app/ctbrec-server-$CTBVER-docker.jar" -Dfile.encoding=utf-8 -Dctbrec.config.dir=/app/config -Dctbrec.config=server.json ctbrec.recorder.server.HttpServer
