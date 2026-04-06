@@ -9,7 +9,7 @@ on:
       ctbver:
         description: CTBRec version (maps to ctbrec-server-<version>-docker.jar)
         required: true
-        default: 5.3.6-final
+        default: 5.3.6
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ permissions:
 
 env:
   IMAGE_NAME: ctbrec-alpine
-  DEFAULT_CTBVER: 5.3.6-final
+  DEFAULT_CTBVER: 5.3.6
 
 jobs:
   docker:
@@ -44,10 +44,15 @@ jobs:
         shell: bash
         run: |
           JAR_PATH="rootfs/app/ctbrec-server-${{ steps.vars.outputs.ctbver }}-docker.jar"
-          if [ ! -f "$JAR_PATH" ]; then
-            echo "Expected jar missing: $JAR_PATH"
-            exit 1
+          JAR_PATH_FINAL="rootfs/app/ctbrec-server-${{ steps.vars.outputs.ctbver }}-final-docker.jar"
+          if [ -f "$JAR_PATH" ] || [ -f "$JAR_PATH_FINAL" ]; then
+            exit 0
           fi
+
+          echo "Expected jar missing: $JAR_PATH"
+          echo "Fallback jar also missing: $JAR_PATH_FINAL"
+          exit 1
+
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

@@ -187,7 +187,11 @@ services:
 
      Example for this repository default:
 
-     `rootfs/app/ctbrec-server-5.3.6-final-docker.jar`
+    `rootfs/app/ctbrec-server-5.3.6-docker.jar`
+
+    Compatibility note: a `-final` suffix is also accepted, e.g.
+
+    `rootfs/app/ctbrec-server-5.3.6-final-docker.jar`
 
   2. Set `CTBVER` in `.env` to the same version string.
 
