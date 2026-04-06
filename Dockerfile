@@ -42,13 +42,9 @@ RUN apk add --update --no-cache \
     # Remove tar xz - N.L.R.
     apk del tar xz
 
-<<<<<<< HEAD
 # Fail fast when the selected CTBRec jar is missing from rootfs/app.
 RUN test -f "/app/ctbrec-server-${CTBVER}-docker.jar" || \
     (echo "Missing /app/ctbrec-server-${CTBVER}-docker.jar. Place it in rootfs/app before building." && exit 1)
-
-=======
->>>>>>> origin/main
 # Container volumes
 VOLUME [ "/app/media", "/app/config" ]
 
