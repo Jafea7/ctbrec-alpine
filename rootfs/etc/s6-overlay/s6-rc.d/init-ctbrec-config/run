@@ -1,0 +1,53 @@
+#!/usr/bin/with-contenv sh
+echo "`date '+%T.%3N'` [init - Environment]"
+env
+
+# Default UID/GID to 911 if none supplied
+echo "`date '+%T.%3N'` [init - UID/GID]"
+PUID=${PUID:-1000}
+PGID=${PGID:-1000}
+# Modify the existing user
+groupmod -o -g "$PGID" ctbrec
+usermod -o -u "$PUID" ctbrec
+
+echo "`date '+%T.%3N'` [init - v$CTBVER]"
+
+# Pre-existing config check
+echo "`date '+%T.%3N'` [init - Config check]"
+CONFIG_DIR="/app/config"
+LATEST_VERSION=""
+
+LATEST_VERSION=$(cd "$CONFIG_DIR" 2>/dev/null && \
+                 ls -d */ 2>/dev/null | \
+                  sed 's/\///' | \
+                  grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
+                  sort -V | tail -n1)
+if [ -n "$LATEST_VERSION" ]; then
+    echo "Prior config: $LATEST_VERSION"
+else
+    echo "No config found"
+fi
+
+if [ ! -n "$LATEST_VERSION" ]; then
+  # Pre-existing config doesn't exist
+  if [ ! -e /app/config/$CTBVER/server.json ]; then
+    mkdir -p /app/config/$CTBVER
+    cp -n /app/defaults/server.json /app/config/$CTBVER/
+  fi
+fi
+
+# Symlink ffmpeg
+echo "`date '+%T.%3N'` [init - Symlinks]"
+mkdir -p /app/ffmpeg /app/media
+ln -s "$(which ffmpeg)" "/app/ffmpeg"
+ln -s "$(which ffprobe)" "/app/ffprobe"
+
+# Enable post-processing by default
+echo "`date '+%T.%3N'` [init - DoPP]"
+if [ ! -f "/app/config/$CTBVER/dopp" ]; then
+  touch "/app/config/$CTBVER/dopp"
+fi
+
+# Set owner and perms
+echo "`date '+%T.%3N'` [init - Owner and perms]"
+/app/fixperms /app ctbrec ctbrec 775 764
