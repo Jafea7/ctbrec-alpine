@@ -1,0 +1,81 @@
+name: Build and Publish GHCR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      ctbver:
+        description: CTBRec version (maps to ctbrec-server-<version>-docker.jar)
+        required: true
+        default: 5.3.6-final
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ctbrec-alpine
+  DEFAULT_CTBVER: 5.3.6-final
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve CTBVER
+        id: vars
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.ctbver }}" ]; then
+            CTBVER="${{ github.event.inputs.ctbver }}"
+          else
+            CTBVER="${DEFAULT_CTBVER}"
+          fi
+
+          echo "ctbver=${CTBVER}" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Check expected jar exists
+        shell: bash
+        run: |
+          JAR_PATH="rootfs/app/ctbrec-server-${{ steps.vars.outputs.ctbver }}-docker.jar"
+          if [ ! -f "$JAR_PATH" ]; then
+            echo "Expected jar missing: $JAR_PATH"
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.image }}
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.ctbver }}
+            type=raw,value=latest
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          build-args: |
+            CTBVER=${{ steps.vars.outputs.ctbver }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
