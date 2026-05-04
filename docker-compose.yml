@@ -1,6 +1,10 @@
 services:
   ctbrec:
-    image: jafea7/ctbrec-alpine:latest
+    build:
+      context: .
+      args:
+        CTBVER: ${CTBVER}
+    image: ctbrec-alpine:${CTBVER}
     container_name: ctbrec
     environment:
       - TZ=${TZ}

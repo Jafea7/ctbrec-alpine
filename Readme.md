@@ -177,6 +177,32 @@ services:
     restart: "unless-stopped"
 ```
 
+  ## Build Local Image / Update CTBRec Version
+
+  This repository is configured to build a local image using the `CTBVER` value in `.env`.
+
+  1. Place the matching jar into `rootfs/app` using this naming format:
+
+     `ctbrec-server-<CTBVER>-docker.jar`
+
+     Example for this repository default:
+
+    `rootfs/app/ctbrec-server-5.3.6-docker.jar`
+
+    Compatibility note: a `-final` suffix is also accepted, e.g.
+
+    `rootfs/app/ctbrec-server-5.3.6-final-docker.jar`
+
+  2. Set `CTBVER` in `.env` to the same version string.
+
+  3. Build and start:
+
+  ```bash
+  docker compose up -d --build
+  ```
+
+  If the jar is missing or the name does not match `CTBVER`, the Docker build now fails with a clear error.
+
 ## QNap Installs
 
 When you create the container using Container Station specify the PUID and PGID environment variables, (you can't do this later).
