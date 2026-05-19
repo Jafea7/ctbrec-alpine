@@ -9,7 +9,7 @@ on:
       ctbver:
         description: CTBRec version (maps to ctbrec-server-<version>-docker.jar)
         required: true
-        default: 5.3.6
+        default: 5.4.6
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ permissions:
 
 env:
   IMAGE_NAME: ctbrec-alpine
-  DEFAULT_CTBVER: 5.3.6
+  DEFAULT_CTBVER: 5.4.6
 
 jobs:
   docker:
