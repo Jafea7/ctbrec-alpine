@@ -12,6 +12,9 @@ ARG CTBVER
 ENV CTBVER=${CTBVER}
 ENV HOME=/app
 
+# Force VA-API to use the Intel Media driver (ignored on ARM)
+# ENV LIBVA_DRIVER_NAME=iHD
+
 # Copy the rootfs layout including files
 COPY rootfs/ /
 
@@ -21,12 +24,21 @@ RUN apk add --update --no-cache \
     openjdk21-jre-headless \
     tzdata python3 py3-urllib3 py3-requests \
     shadow 7zip && \
+    # Determine architecture for s6-overlay and driver setup
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        S6_ARCH="aarch64"; \
+    else \
+        S6_ARCH="x86_64"; \
+        # Install Intel VA-API dependencies from community repo on AMD64
+#        apk add --no-cache \
+#            --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community/ \
+#            libva libva-glx intel-media-driver libva-utils mesa-va-gallium linux-firmware-amdgpu; \
+    fi && \
     # Get s6-overlay tarballs
-    [ "$TARGETPLATFORM" = "linux/arm64" ] && S6_ARCH=aarch64 || S6_ARCH=x86_64 && \
     curl -s -L -o /tmp/s6-overlay-noarch.tar.xz https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz && \
     curl -s -L -o /tmp/s6-overlay-${S6_ARCH}.tar.xz https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz && \
     curl -s -L -o /tmp/s6-overlay-symlinks-noarch.tar.xz https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-symlinks-noarch.tar.xz && \
-    # Extact s6-overlay tarballs
+    # Extract s6-overlay tarballs
     tar -C / --strip-components=1 -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     tar -C / --strip-components=1 -Jxpf /tmp/s6-overlay-${S6_ARCH}.tar.xz && \
     tar -C / --strip-components=1 -Jxpf /tmp/s6-overlay-symlinks-noarch.tar.xz && \
