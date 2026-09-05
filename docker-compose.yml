@@ -2,7 +2,9 @@ services:
   ctbrec:
     image: jafea7/ctbrec-alpine:latest
     container_name: ctbrec
+    stop_grace_period: 16m
     environment:
+      - S6_SERVICES_GRACETIME=750000
       - TZ=${TZ}
       - PGID=${PGID}
       - PUID=${PUID}
