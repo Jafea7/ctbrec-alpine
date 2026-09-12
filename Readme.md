@@ -53,10 +53,12 @@ Launch the CTBRec server docker container with the following command:
 ```
 docker run -d \
     --name=ctbrec-alpine \
+    --stop-timeout 960 \
     -p 18080:8080 \
     -p 18443:8443 \
     -v /where/ever/media:/app/media:rw \
     -v /where/ever/.config/ctbrec:/app/config:rw \
+    -e S6_SERVICES_GRACETIME=750000 \
     -e TZ=Australia/Sydney \
     -e PGID=1001 \
     -e PUID=1001 \
@@ -164,7 +166,9 @@ services:
   ctbrec-alpine:
     image: jafea7/ctbrec-alpine
     container_name: "ctbrec-alpine"
+    stop_grace_period: 16m
     environment:
+      - S6_SERVICES_GRACETIME=750000
       - TZ=Australia/Sydney
       - PGID=1001
       - PUID=1001
