@@ -2,13 +2,32 @@
 echo "`date '+%T.%3N'` [init - Environment]"
 env
 
-# Default UID/GID to 911 if none supplied
+# Default UID/GID to 1000 if none supplied
 echo "`date '+%T.%3N'` [init - UID/GID]"
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 # Modify the existing user
 groupmod -o -g "$PGID" ctbrec
 usermod -o -u "$PUID" ctbrec
+
+# The application tree is part of the image, not a user volume.  Repair its
+# ownership after applying PUID/PGID and make the bundled helper scripts
+# executable.  Config and media are deliberately excluded: they may be bind
+# mounts or root-squashed NFS exports and are handled separately below.
+chown ctbrec:ctbrec /app
+find /app -mindepth 1 -maxdepth 1 ! -name config ! -name media \
+    -exec chown -R ctbrec:ctbrec {} +;
+find /app -mindepth 1 -maxdepth 1 -type f \( -name "*.sh" -o -name "*.py" \) \
+    -exec chmod 755 {} +;
+
+# Repair only writable volumes.  The application itself runs as this user;
+# using it for initial config creation also works on root-squashed NFS shares.
+/app/fixperms /app/config ctbrec ctbrec 775 764
+/app/fixperms /app/media ctbrec ctbrec 775 664
+
+as_ctbrec() {
+  s6-setuidgid ctbrec "$@"
+}
 
 echo "`date '+%T.%3N'` [init - v$CTBVER]"
 
@@ -17,11 +36,11 @@ echo "`date '+%T.%3N'` [init - Config check]"
 CONFIG_DIR="/app/config"
 LATEST_VERSION=""
 
-LATEST_VERSION=$(cd "$CONFIG_DIR" 2>/dev/null && \
+LATEST_VERSION=$(as_ctbrec sh -c 'cd "$1" 2>/dev/null && \
                  ls -d */ 2>/dev/null | \
-                  sed 's/\///' | \
-                  grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | \
-                  sort -V | tail -n1)
+                  tr -d / | \
+                  grep -E "^[0-9]+\.[0-9]+\.[0-9]+$" | \
+                  sort -V | tail -n1' sh "$CONFIG_DIR")
 if [ -n "$LATEST_VERSION" ]; then
     echo "Prior config: $LATEST_VERSION"
 else
@@ -30,24 +49,27 @@ fi
 
 if [ ! -n "$LATEST_VERSION" ]; then
   # Pre-existing config doesn't exist
-  if [ ! -e /app/config/$CTBVER/server.json ]; then
-    mkdir -p /app/config/$CTBVER
-    cp -n /app/defaults/server.json /app/config/$CTBVER/
+  if ! as_ctbrec test -e "/app/config/$CTBVER/server.json"; then
+    as_ctbrec mkdir -p "/app/config/$CTBVER"
+    as_ctbrec cp -n /app/defaults/server.json "/app/config/$CTBVER/"
+    as_ctbrec chmod 764 "/app/config/$CTBVER/server.json"
   fi
 fi
 
 # Symlink ffmpeg
 echo "`date '+%T.%3N'` [init - Symlinks]"
-mkdir -p /app/ffmpeg /app/media
-ln -s "$(which ffmpeg)" "/app/ffmpeg"
-ln -s "$(which ffprobe)" "/app/ffprobe"
+as_ctbrec mkdir -p /app/ffmpeg /app/media
+as_ctbrec ln -sf "$(which ffmpeg)" "/app/ffmpeg"
+as_ctbrec ln -sf "$(which ffprobe)" "/app/ffprobe"
 
 # Enable post-processing by default
 echo "`date '+%T.%3N'` [init - DoPP]"
-if [ ! -f "/app/config/$CTBVER/dopp" ]; then
-  touch "/app/config/$CTBVER/dopp"
+if as_ctbrec test -d "/app/config/$CTBVER" && \
+   ! as_ctbrec test -e "/app/config/$CTBVER/dopp"; then
+  as_ctbrec touch "/app/config/$CTBVER/dopp"
 fi
 
-# Set owner and perms
-echo "`date '+%T.%3N'` [init - Owner and perms]"
-/app/fixperms /app ctbrec ctbrec 775 764
+# An older-version config is intentionally left for CTBRec's own migration
+# routine.  Do not let an optional marker-file operation fail this s6 init job.
+exit 0
+

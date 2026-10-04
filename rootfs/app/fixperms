@@ -19,16 +19,33 @@ if [ ! -d "$DIR" ]; then
     exit 1
 fi
 
-# Change ownership of directory and files recursively
-chown -R "$USER:$GROUP" "$DIR"
+FAILED=0
 
-# Set directory permissions recursively
-find "$DIR" -type d -exec chmod "$DIR_PERMS" {} \;
+# Only change entries that need repair. Apart from avoiding needless metadata
+# writes on bind mounts, this makes the desired startup policy explicit.
+# Do not make a failed repair fatal: on a root-squashed NFS export, container
+# root is mapped to an anonymous user and is not allowed to chown or chmod.
+if ! find "$DIR" -xdev \( ! -user "$USER" -o ! -group "$GROUP" \) \
+    -exec chown "$USER:$GROUP" {} +; then
+    echo "WARNING: could not repair all ownership under $DIR" >&2
+    FAILED=1
+fi
 
-# Set file permissions recursively
-find "$DIR" -type f -exec chmod "$FILE_PERMS" {} \;
+if ! find "$DIR" -xdev -type d ! -perm "$DIR_PERMS" -exec chmod "$DIR_PERMS" {} +; then
+    echo "WARNING: could not repair all directory modes under $DIR" >&2
+    FAILED=1
+fi
 
-# set +x on .sh and .py
-find "$DIR" -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
+if ! find "$DIR" -xdev -type f ! -perm "$FILE_PERMS" -exec chmod "$FILE_PERMS" {} +; then
+    echo "WARNING: could not repair all file modes under $DIR" >&2
+    FAILED=1
+fi
 
-echo "Permissions updated for directory: $DIR"
+if [ "$FAILED" -eq 0 ]; then
+    echo "Permissions verified for directory: $DIR"
+else
+    echo "WARNING: permission repair was incomplete for $DIR; continuing so the configured PUID can access it." >&2
+fi
+
+exit 0
+

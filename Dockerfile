@@ -62,7 +62,8 @@ EXPOSE 8080 8443
 
 # Healthcheck for container health, reads the http port from server.json
 HEALTHCHECK --interval=20s --retries=3 --timeout=3s \
-        CMD sh -x /app/healthcheck.sh
+        CMD /command/s6-setuidgid ctbrec sh -x /app/healthcheck.sh
 
 # Initialise
 ENTRYPOINT ["/init"]
+
