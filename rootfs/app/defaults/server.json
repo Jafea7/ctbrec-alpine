@@ -1,19 +1,27 @@
 {
-  "amateurTvUsername" : "",
-  "amateurTvPassword" : "",
+  "flaresolverr" : {
+    "apiUrl" : "http://localhost:8191/v1",
+    "timeoutInMillis" : 60000,
+    "userAgent" : "",
+    "useForDomains" : [ "" ]
+  },
   "bongacamsBaseUrl" : "https://bongacams.com",
   "bongaPassword" : "",
   "bongaUsername" : "",
   "cam4Password" : "",
   "cam4Username" : "",
+  "cam4BaseUrl" : "https://cam4.com",
+  "cam4InvalidModelCheckCooldownSecs" : 86400,
   "camsodaPassword" : "",
   "camsodaUsername" : "",
   "chaturbatePassword" : "",
   "chaturbateUsername" : "",
   "chaturbateBaseUrl" : "https://chaturbate.com",
+  "chaturbateUseFlaresolverr" : false,
+  "chaturbateOldApi" : false,
+  "chaturbatePreserveWorkspace" : false,
+  "v260520" : false,
   "chaturbateMsBetweenRequests" : 1500,
-  "cherryTvPassword" : "",
-  "cherryTvUsername" : "",
   "chooseStreamQuality" : false,
   "colorAccent" : "#FFFFFF",
   "colorBase" : "#FFFFFF",
@@ -22,9 +30,15 @@
   "contactsheetTimestampLook" : "font=sans-serif:fontcolor=white:fontsize=60:box=1:boxcolor=black@0.5:boxborderw=5",
   "dateTimeFormat" : "",
   "defaultPriority" : 50,
+  "defaultLogLevel" : "INFO",
+  "componentLoggingOverrides" : { },
+  "siteLoggingOverrides" : { },
+  "loggerLoggingOverrides" : { },
   "deleteOrphanedRecordingMetadata" : true,
+  "autoCleanOrphanedMetadata" : false,
   "determineResolution" : false,
-  "disabledSites" : [ "SecretFriends", "LiveJasmin", "MV Live", "Amateur.tv", "CherryTV" ],
+  "disabledSites" : [ ],
+  "hiddenSiteTabs" : [ ],
   "downloadFilename" : "$sanitize(${modelName})_$sanitize(${siteName})_$format(${localDateTime},yyyyMMdd-HHmmss)",
   "eventHandlers" : [ ],
   "eventsSuspended" : false,
@@ -58,6 +72,7 @@
   "logMissedSegments" : true,
   "minimumResolution" : 0,
   "maximumResolution" : 8640,
+  "minViewersTimeoutHours" : 0,
   "maximumResolutionPlayer" : 0,
   "mediaPlayer" : "/usr/bin/mpv",
   "mediaPlayerParams" : "",
@@ -76,66 +91,79 @@
   "minimizeToTray" : false,
   "minimumLengthInSeconds" : 0,
   "minimumSpaceLeftInBytes" : 0,
-  "models" : [ ],
-  "modelGroups" : [ ],
-  "modelNotes" : { },
-  "modelPortraits" : { },
-  "modelsIgnored" : [ ],
   "monitorClipboard" : false,
   "onlineCheckIntervalInSecs" : 60,
   "onlineCheckSkipsPausedModels" : true,
+  "streamateStatusStaleSecs" : 180,
   "overviewUpdateIntervalInSecs" : 60,
+  "backoffBaseSecs" : 30,
+  "backoffMaxSecs" : 300,
+  "boostIntervalSecs" : 5,
+  "boostWindowSecs" : 30,
+  "recordedIntervalSecs" : 60,
+  "stallRecoveryThresholdSecs" : 30,
+  "maxStallRecoveries" : 3,
+  "siteOnlineCheckIntervalSecs" : { },
   "password" : "",
   "postProcessing" : "",
-  "playlistRequestTimeout" : 2000,
+  "playlistRequestTimeout" : 3000,
+  "httpClientMaxRequests" : 64,
+  "httpClientMaxRequestsPerHost" : 16,
   "postProcessingThreads" : 1,
-  "postProcessors" : [ {
-    "type" : "ctbrec.recorder.postprocessing.Script",
+  "postProcessors" : [ ],
+  "postProcessingFlows" : [ {
+    "id" : "af923b69-a961-49ba-a611-3dbfdbd6025f",
+    "name" : "Default (legacy)",
     "enabled" : true,
-    "config" : {
-      "script.params" : "",
-      "script.executable" : "/app/dopp.sh"
-    }
-  }, {
-    "type" : "ctbrec.recorder.postprocessing.Script",
-    "enabled" : true,
-    "config" : {
-      "script.params" : "${absolutePath}",
-      "script.executable" : "/app/plcheck.sh"
-    }
-  }, {
-    "type" : "ctbrec.recorder.postprocessing.Remux",
-    "enabled" : true,
-    "config" : {
-      "ffmpeg.args" : "-c:v copy -c:a copy -y -f matroska",
-      "file.ext" : "mkv",
-      "preffmpeg.args" : ""
-    }
-  }, {
-    "type" : "ctbrec.recorder.postprocessing.Rename",
-    "enabled" : true,
-    "config" : {
-      "filename.template" : "$sanitize(${modelName})_$sanitize(${siteName})_$format(${localDateTime},yyyyMMdd-HHmmss).${fileSuffix}"
-    }
-  }, {
-    "type" : "ctbrec.recorder.postprocessing.CreateContactSheet",
-    "enabled" : true,
-    "config" : {
-      "padding" : "1",
-      "burn_in_timestamp" : "true",
-      "filename" : "$sanitize(${modelName})_$sanitize(${siteName})_$format(${localDateTime},yyyyMMdd-HHmmss).jpg",
-      "columns" : "10",
-      "background" : "0x333333",
-      "total_size" : "3840",
-      "rows" : "9"
-    }
+    "condition" : null,
+    "steps" : [ {
+      "type" : "ctbrec.recorder.postprocessing.Script",
+      "enabled" : true,
+      "config" : {
+        "script.params" : "",
+        "script.executable" : "/app/dopp.sh"
+      }
+    }, {
+      "type" : "ctbrec.recorder.postprocessing.Script",
+      "enabled" : true,
+      "config" : {
+        "script.params" : "${absolutePath}",
+        "script.executable" : "/app/plcheck.sh"
+      }
+    }, {
+      "type" : "ctbrec.recorder.postprocessing.Remux",
+      "enabled" : true,
+      "config" : {
+        "ffmpeg.args" : "-c:v copy -c:a copy -movflags faststart -y -f matroska",
+        "file.ext" : "mkv"
+      }
+    }, {
+      "type" : "ctbrec.recorder.postprocessing.Rename",
+      "enabled" : true,
+      "config" : {
+        "filename.template" : "$sanitize(${modelName})_$sanitize(${siteName})_$format(${localDateTime},yyyyMMdd-HHmmss).${fileSuffix}"
+      }
+    }, {
+      "type" : "ctbrec.recorder.postprocessing.CreateContactSheet",
+      "enabled" : true,
+      "config" : {
+        "padding" : "2",
+        "burn_in_timestamp" : "true",
+        "filename" : "$sanitize(${modelName})_$sanitize(${siteName})_$format(${localDateTime},yyyyMMdd-HHmmss).jpg",
+        "columns" : "10",
+        "background" : "0x333333",
+        "total_size" : "4096",
+        "rows" : "9"
+      }
+    } ],
+      "conditionSummary" : "always"
   } ],
   "proxyHost" : null,
   "proxyPassword" : null,
   "proxyPort" : null,
   "proxyType" : "DIRECT",
   "proxyUser" : null,
-  "pacUrl": null,
+  "pacUrl" : null,
   "recentlyWatched" : true,
   "recordLaterTableColumnOrder" : [ ],
   "recordLaterTableColumnVisibility" : { },
@@ -182,6 +210,7 @@
   "streamateUsername" : "",
   "stripchatUsername" : "",
   "stripchatPassword" : "",
+  "stripchatBaseUrl" : "https://stripchat.com",
   "stripchatUseXhamster" : false,
   "tabOrder" : [ "BongaCams", "Cam4", "CamSoda", "Chaturbate", "DreamCam", "FC2Live", "Flirt4Free", "MyFreeCams", "Showup.tv", "Streamate", "Stripchat", "Streamray", "WinkTv", "XloveCam", "Recording", "Recordings", "Settings", "News", "Donate", "Help", "Logging" ],
   "tabsSortable" : true,
@@ -203,13 +232,32 @@
   "webinterfacePassword" : "sucks",
   "xlovecamUsername" : "",
   "xlovecamPassword" : "",
+  "xlovecamUsePerformerRoomStatus" : false,
   "stripchatVR" : false,
   "streamrayRecordGoalShows" : false,
-  "checkForUpdates" : true,
   "thumbCacheSize" : 16,
   "dreamcamVR" : true,
   "filterBlacklist" : "",
   "filterWhitelist" : "",
   "checkResolutionByMinSide" : false,
-  "restrictBitrate" : 0
+  "restrictBitrate" : 0,
+  "configSavingDelayMs" : 400,
+  "duplicateCheckBypass" : false,
+  "knownMouflonKeys" : [ ],
+  "mouflonKeyMapping" : {
+    "NTK9aqcLmNFMWrpQ" : "1838c78f543606e6de5fc81167f36e5a",
+    "Ook7quaiNgiyuhai" : "ae118addef71f58bdbf5496c93a8aecd",
+    "GrRncsoByZmsiT6L" : "08d98ac37c0f92e32190b48d9ef3839d",
+    "OLzu7QlySkG2fVRn" : "2d4f81895a7d3ebdb3c54d1802fc74ce",
+    "1Dzcc6OjP73LKbtI" : "334eff75462ef6a610704bc3d3e7445f",
+    "Zeechoej4aleeshi" : "18c07f4c09d3822b7f085ed91680edce",
+    "7uUnbD0jMCB9GH32" : "9db22360bfb4aaed80e9ea883da69ec5",
+    "rHQhP6lNYB8v13s1" : "e17a09961df1cff94fb9324ff18cabce",
+    "N2oLovTIXb0o28Uj" : "7e66be7bcac104e990c4499e2f3ad1e0",
+    "Zokee2OhPh9kugh4" : "e190ef6e058b7417a4c89cd38f05c04b",
+    "qjfc0a2Mi4ngsau6" : "b8a651203a2caeca73eca302e161e30e",
+    "Fq6m2TO2ZeBkRPm9" : "63359272ec90446006731c7528826689",
+    "Ohi7eTRBpkAuML0l" : "b58e30df955e3bfe82a9c3daa4d54cbc"
+  },
+  "mouflonKeyUrl" : "https://files.ctbrec.com/keys.json"
 }

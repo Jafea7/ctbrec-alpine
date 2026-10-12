@@ -11,9 +11,12 @@ CTBRec server functionality that is exposed includes:
 * getting/adding/modifying/deleting model-groups
 * getting/deleting/post-processing recordings
 * model notes management
+* server-side cookie management
 * debug information access
 
 Tested with ctbrec-server version 5.3.2, and Python version 3.9+
+
+NOTE: Some API calls are only available in v25 or later.
 """
 
 import json
@@ -248,38 +251,6 @@ class CtbRec:
                 warnings.warn(f'{m} added but could not be matched on server')
         return models_added
 
-    def bulk_add_models(self, models: List[Union[str, dict]], props: dict = None) -> dict:
-        """
-        Add a list of models to the server in a single bulk request.
-
-        Args:
-            models: A list of model definitions - one of [url[str], Site:Name[str], ModelDict[dict]]
-            props: Optional dict of one or more model definition items to apply to all added models.
-                   
-        Returns:
-            Success message dict.
-            
-        Raises:
-            CtbRecInvalidModelDefinition: If model format is not recognized.
-            CtbRecRequestFailed: If the server request fails.
-        """
-        payload_models = []
-        for m in models:
-            mt = self.parse_model_type(m)
-            if mt == self.ModelType.model_dict:
-                model_dict = self.parse_model_props(m)
-                if props:
-                    model_dict.update(props)
-            elif mt == self.ModelType.site_name or mt == self.ModelType.url:
-                model_dict = {"type": None, "name": "", "url": m}
-                if props:
-                    model_dict.update(self.parse_model_props(props))
-            else:
-                raise CtbRecInvalidModelDefinition("Invalid model definition")
-            payload_models.append(model_dict)
-
-        return self.send_request("/rec", data={"action": "bulkStart", "models": payload_models})
-
     def update_model(self, model: Union[str, dict], props: dict) -> dict:
         """
         Update properties for an existing model on the server.
@@ -351,24 +322,6 @@ class CtbRec:
         }
         
         return self.send_request("/rec", data={"action": "updateModelProperties", "model": model_data})
-
-    def change_priority(self, model: Union[str, dict]) -> dict:
-        """
-        Notify the server that a model's priority has changed, triggering re-evaluation.
-
-        Args:
-            model: One of [url[str], Site:Name[str], ModelDict[dict]]
-            
-        Returns:
-            Success message dict.
-            
-        Raises:
-            CtbRecNotFound: If model could not be found.
-            CtbRecRequestFailed: If the server request fails.
-        """
-        mt = self.parse_model_type(model)
-        m = model if mt == self.ModelType.model_dict else self.find_model(model)
-        return self.send_request("/rec", data={"action": "changePriority", "model": m})
 
     def remove_model(self, model: Union[str, dict]):
         """
@@ -535,54 +488,6 @@ class CtbRec:
         if match:
             return match[0]
         raise CtbRecNotFound("Requested model could not be found on server.")
-
-    # ----------------------------------------- model import/export methods -------------------------------------------
-    def export_models(self, stripped: bool = False) -> dict:
-        """
-        Export all models, notes, groups, and portraits from the server.
-
-        Args:
-            stripped: If True, key settings (resolution, bitrate, downtime) will be stripped.
-            
-        Returns:
-            Dict containing models, notes, groups, and portraits.
-            
-        Raises:
-            CtbRecRequestFailed: If the server request fails.
-        """
-        url = self.server_url + '/models/export'
-        if stripped:
-            url += '?stripped=true'
-        result = self.session.get(
-            url,
-            headers={'CTBREC-HMAC': self._compute_hmac('')}
-        )
-        if result.status_code == 200:
-            return json.loads(result.text)
-        raise CtbRecRequestFailed(f'HTTP error: {result.status_code} : {result.reason}')
-
-    def import_models(self, import_data: dict) -> dict:
-        """
-        Import models, notes, groups, and portraits to the server.
-
-        Args:
-            import_data: Dict containing models, notes, groups, and/or portraits to import.
-            
-        Returns:
-            Response dict with status message.
-            
-        Raises:
-            CtbRecRequestFailed: If the server request fails.
-        """
-        data_str = json.dumps(import_data)
-        result = self.session.post(
-            self.server_url + '/models/import',
-            data=data_str,
-            headers={'CTBREC-HMAC': self._compute_hmac(data_str)}
-        )
-        if result.status_code == 200:
-            return json.loads(result.text)
-        raise CtbRecRequestFailed(f'HTTP error: {result.status_code} : {result.reason} : {result.text}')
 
     # ----------------------------------------- model notes methods ----------------------------------------------------
     def get_model_notes(self) -> Dict[str, str]:
@@ -880,7 +785,7 @@ class CtbRec:
             image_data = f.read()
         self.set_model_portrait(model, image_data)
 
-    def fetch_model_portrait_from_stream(self, model: Union[str, dict], preview: bool = False) -> bytes:
+    def fetch_model_portrait_from_stream(self, model: Union[str, dict]) -> bytes:
         """
         Fetch the current preview thumbnail from a model's live stream and save it as portrait.
         
@@ -890,7 +795,6 @@ class CtbRec:
 
         Args:
             model: One of [url[str], Site:Name[str], ModelDict[dict]]
-            preview: If True, fetches the processed portrait image bytes without saving it on the server.
             
         Returns:
             The fetched and processed portrait image as bytes (JPEG format).
@@ -914,11 +818,8 @@ class CtbRec:
             model_url = m['url']
         
         encoded_url = quote(model_url, safe='')
-        url_path = f'/image/portrait/fetch/{encoded_url}'
-        if preview:
-            url_path += '?preview=true'
         result = self.session.get(
-            self.server_url + url_path,
+            self.server_url + f'/image/portrait/fetch/{encoded_url}',
             headers={'CTBREC-HMAC': self._compute_hmac('')}
         )
         if result.status_code == 200:
@@ -1078,13 +979,15 @@ class CtbRec:
         self.save_model_group(group)
         return self.get_model_groups()[group['name']]
 
-    def create_model_group(self, name: str, model_list: list) -> dict:
+    def create_model_group(self, name: str, model_list: list, pvt_only: bool = False) -> dict:
         """
         Create a new model group on the server.
 
         Args:
             name: A string specifying name of the new group. Must be unique.
             model_list: A list of models where list items can be either a URL string, or a model dict.
+            pvt_only: If True, models in this group will be auto-paused when no private show is active
+                      and auto-resumed during a private show. Default is False.
             
         Returns:
             The created model group dict.
@@ -1097,8 +1000,35 @@ class CtbRec:
         if name in groups:
             raise CtbRecAlreadyExists(f'Model group {name} already exists')
         ml = {m if isinstance(m, str) else m['url'] for m in model_list}  # use set to reduce to unique urls
-        self.save_model_group({"name": name, 'modelUrls': list(ml), 'id': uuid.uuid4().__str__()})
+        self.save_model_group({"name": name, 'modelUrls': list(ml), 'id': uuid.uuid4().__str__(), 'pvtOnly': pvt_only})
         return self.get_model_groups()[name]
+
+    def set_group_pvt_only(self, group: Union[dict, str], pvt_only: bool) -> dict:
+        """
+        Enable or disable Pvt Only mode for a model group.
+
+        When Pvt Only is enabled, models in the group are automatically paused
+        when no private show is active, and automatically resumed when a private
+        show starts. This is useful for models that only stream private shows.
+
+        Args:
+            group: Either a group name or a group dict, specifying an existing model group.
+            pvt_only: True to enable Pvt Only mode, False to disable.
+
+        Returns:
+            The updated model group dict.
+
+        Raises:
+            CtbRecNotFound: If group could not be found.
+            CtbRecRequestFailed: If the server request fails.
+        """
+        if isinstance(group, str):
+            g = self.find_model_group(group)
+        else:
+            g = group
+        g['pvtOnly'] = pvt_only
+        self.save_model_group(g)
+        return self.get_model_groups()[g['name']]
 
     def find_model_group(self, name: str) -> dict:
         """
@@ -1195,6 +1125,46 @@ class CtbRec:
         self.send_request(url='/rec', data={'action': 'rerunPostProcessing', 'recording': recording})
 
     # --------------------------------------- general server methods ---------------------------------------------------
+    def get_cookie_sites(self) -> List[dict]:
+        """Return sites whose persisted cookie jars can be managed on the server."""
+        return self.send_request(url='/cookies')['sites']
+
+    def import_cookies(self, contents: str, sites: Optional[List[str]] = None) -> dict:
+        """
+        Import a Netscape-format cookies.txt payload into matching server site jars.
+
+        Args:
+            contents: Complete contents of a Netscape HTTP Cookie File. Treat this
+                value as a credential and never log it.
+            sites: Optional site IDs from :meth:`get_cookie_sites` to restrict the
+                import. Omit to import into every matching configured site.
+
+        Returns:
+            The server response with ``parsed`` and per-site ``imported`` counts.
+        """
+        if not isinstance(contents, str) or not contents.strip():
+            raise ValueError('contents must be a non-empty Netscape cookie file')
+        data = {'action': 'import', 'contents': contents}
+        if sites is not None:
+            data['sites'] = sites
+        return self.send_request(url='/cookies', data=data)
+
+    def import_cookies_file(self, filename: str, sites: Optional[List[str]] = None) -> dict:
+        """Read a UTF-8 Netscape cookie file and import it; see :meth:`import_cookies`."""
+        with open(filename, 'r', encoding='utf-8') as cookie_file:
+            return self.import_cookies(cookie_file.read(), sites)
+
+    def clear_cookies(self, sites: List[str]) -> dict:
+        """
+        Permanently delete the server's saved cookies for the specified site IDs.
+
+        This ends any associated server-side sessions. Use IDs returned by
+        :meth:`get_cookie_sites`.
+        """
+        if not sites:
+            raise ValueError('select at least one site to clear')
+        return self.send_request(url='/cookies', data={'action': 'clear', 'sites': sites})
+
     def get_settings(self) -> list:
         """
         Get current server settings.
@@ -1307,9 +1277,53 @@ class CtbRec:
         """
         return self.send_request(url='/rec', data={'action': 'recorderStatus'})
 
+    def get_health(self) -> dict:
+        """
+        Get a point-in-time snapshot of recorder performance and health metrics.
+
+        Returns:
+            Health snapshot containing recorder, disk, HTTP pool, online monitor,
+            executor, scheduling, persistence, throughput, and active-recording
+            metrics, including hostCpuUsagePercent. recorderStartedAt is an ISO-8601 timestamp; subtract it
+            from capturedAt for uptime. Durations and ages are expressed in
+            milliseconds; byte values are raw byte counts. A metric value of
+            -1 means unavailable.
+
+        Raises:
+            CtbRecRequestFailed: If the server request fails.
+        """
+        return self.send_request(url='/rec', data={'action': 'health'})['health']
+
+    def get_all(self) -> dict:
+        """
+        Get all server data in a single call using the composite endpoint.
+
+        This is more efficient than making separate calls to get_models(),
+        get_recordings(), get_space(), etc. as it returns everything in one
+        request/response cycle.
+
+        Returns:
+            Dict containing:
+            - models: List of all model dicts
+            - onlineModels: List of online model dicts
+            - currentlyRecording: List of currently recording model dicts
+            - recordings: List of recording dicts
+            - spaceTotal: Total disk space in bytes
+            - spaceFree: Free disk space in bytes
+            - throughput: Current throughput in bytes/sec
+            - throughputTimeframe: Throughput measurement timeframe in ms
+            - minimumSpaceLeftInBytes: Configured minimum free space
+
+        Raises:
+            CtbRecRequestFailed: If the server request fails.
+        """
+        return self.send_request(url='/rec', data={'action': 'listAll'})
+
     def get_summary(self) -> dict:
         """
         Get summary of server activity.
+
+        Uses the composite endpoint for efficiency.
 
         Returns:
             Dict containing:
@@ -1323,19 +1337,21 @@ class CtbRec:
             - space_used: Used space as formatted string
             - space_free: Free space as formatted string
             - throughput: Current throughput as formatted string
-            
+
         Raises:
             CtbRecRequestFailed: If the server request fails.
         """
-        models = self.get_models()
+        data = self.get_all()
+        models = {self.model_id(m): m for m in data.get('models', [])}
         paused = len([m for m in models.values() if m['suspended']])
         later = len([m for m in models.values() if m.get('bookmarked', m.get('markedForLater', False))])
-        online = len(self.get_models(online=True))
-        recordings = self.get_recordings()
+        online = len(data.get('onlineModels', []))
+        recordings = data.get('recordings', [])
         recording = len([r for r in recordings if r['status'] == 'RECORDING'])
         post_process = len([r for r in recordings if r['status'] == 'POST_PROCESSING'])
-        space = self.get_space()
-        throughput = space.get('throughput', 0)
+        space_total = data.get('spaceTotal', 0)
+        space_free = data.get('spaceFree', 0)
+        throughput = data.get('throughput', 0)
         return {
             "total_models": len(models),
             "models_recording": recording,
@@ -1344,8 +1360,8 @@ class CtbRec:
             "models_marked_later": later,
             "total_recordings": len(recordings),
             "post_processing": post_process,
-            "space_used": f"{round((space['spaceTotal'] - space['spaceFree']) / 1e9, 3)} GB",
-            "space_free": f"{round(space['spaceFree'] / 1e9, 3)} GB",
+            "space_used": f"{round((space_total - space_free) / 1e9, 3)} GB",
+            "space_free": f"{round(space_free / 1e9, 3)} GB",
             "throughput": f"{round(throughput / 1e6, 2)} MB/s" if throughput > 0 else "0 MB/s"
         }
 
@@ -1426,24 +1442,6 @@ class CtbRec:
             CtbRecRequestFailed: If the server request fails or endpoint not available.
         """
         result = self.session.get(self.server_url + '/debug/stats')
-        if result.status_code == 200:
-            return result.text
-        raise CtbRecRequestFailed(f'HTTP error: {result.status_code} : {result.reason}')
-
-    def get_debug_stack(self) -> str:
-        """
-        Get all thread stack traces from the server.
-
-        Returns:
-            Plain text string containing thread stack traces.
-            
-        Raises:
-            CtbRecRequestFailed: If the server request fails.
-        """
-        result = self.session.get(
-            self.server_url + '/debug/stack/',
-            headers={'CTBREC-HMAC': self._compute_hmac('')}
-        )
         if result.status_code == 200:
             return result.text
         raise CtbRecRequestFailed(f'HTTP error: {result.status_code} : {result.reason}')
