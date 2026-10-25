@@ -8,10 +8,11 @@ CTBRec server functionality that is exposed includes:
 * querying server state and status
 * updating server settings (including raw config access)
 * getting/adding/modifying/deleting models
-* getting/adding/modifying/deleting model-groups
+* getting/adding/modifying/deleting model-groups and model-categories
 * getting/deleting/post-processing recordings
 * model notes management
 * server-side cookie management
+* server-side WebUI preferences
 * debug information access
 
 Tested with ctbrec-server version 5.3.2, and Python version 3.9+
@@ -59,7 +60,7 @@ class CtbRec:
     Simple Python interface to the awesome ctbrec-server.
     
     This client provides programmatic access to manage recordings, models, 
-    model groups, and server settings.
+    model groups, model categories, and server settings.
     
     Example:
         >>> ctb = CtbRec('https://localhost:8443', 'username', 'password')
@@ -111,6 +112,7 @@ class CtbRec:
         self.initial_config = self.get_settings()
         self.initial_models = self.get_models()
         self.initial_model_groups = self.get_model_groups()
+        self.initial_model_categories = self.get_model_categories()
 
     # ----------------------------------------- model methods ---------------------------------------------------------
     def get_models(self, online: bool = False) -> Mapping[str, dict]:
@@ -490,6 +492,24 @@ class CtbRec:
         raise CtbRecNotFound("Requested model could not be found on server.")
 
     # ----------------------------------------- model notes methods ----------------------------------------------------
+    def get_model_metadata_urls(self) -> List[str]:
+        """
+        Get URLs that have saved model group, note, or portrait metadata.
+
+        Returns:
+            Sorted list of model URLs. A URL is returned once even if it has multiple metadata types.
+
+        Raises:
+            CtbRecRequestFailed: If the server request fails.
+        """
+        result = self.session.get(
+            self.server_url + '/models/metadata-urls',
+            headers={'CTBREC-HMAC': self._compute_hmac('')}
+        )
+        if result.status_code == 200:
+            return json.loads(result.text).get('urls', [])
+        raise CtbRecRequestFailed(f'HTTP error: {result.status_code} : {result.reason}')
+
     def get_model_notes(self) -> Dict[str, str]:
         """
         Get all model notes from the server.
@@ -1049,6 +1069,56 @@ class CtbRec:
             return groups[name]
         raise CtbRecNotFound(f'Model group {name} could not be found on the server')
 
+    # --------------------------------------- model category methods -------------------------------------------------
+    def get_model_categories(self) -> Mapping[str, dict]:
+        """Return categories keyed by name; each has ``id``, ``name``, ``color``, and ``modelUrls``."""
+        categories = self.send_request(url='/rec', data={'action': 'listModelCategories'})['categories']
+        return {category['name']: category for category in categories}
+
+    def find_model_category(self, name: str) -> dict:
+        """Return a category by name or raise :class:`CtbRecNotFound`."""
+        categories = self.get_model_categories()
+        if name in categories:
+            return categories[name]
+        raise CtbRecNotFound(f'Model category {name} could not be found on the server')
+
+    def save_model_category(self, category: dict):
+        """Create or replace a category. Empty categories are retained by the server."""
+        self.send_request(url='/rec', data={'action': 'saveModelCategory', 'modelCategory': category})
+
+    def delete_model_category(self, category: Union[dict, str]):
+        """Delete a category without deleting its member models."""
+        if isinstance(category, str):
+            category = self.find_model_category(category)
+        self.send_request(url='/rec', data={'action': 'deleteModelCategory', 'modelCategory': category})
+
+    def create_model_category(self, name: str, model_list: Optional[List[Union[dict, str]]] = None) -> dict:
+        """Create a category, optionally with model URLs; empty categories are allowed."""
+        categories = self.get_model_categories()
+        if name in categories:
+            raise CtbRecAlreadyExists(f'Model category {name} already exists')
+        urls = {model if isinstance(model, str) else model['url'] for model in (model_list or [])}
+        self.save_model_category({'name': name, 'modelUrls': list(urls), 'id': str(uuid.uuid4())})
+        return self.get_model_categories()[name]
+
+    def add_models_to_category(self, category: Union[dict, str], model_list: List[Union[dict, str]]) -> dict:
+        """Add models to a category. Models may belong to multiple categories."""
+        if isinstance(category, str):
+            category = self.find_model_category(category)
+        category['modelUrls'] = list(set(category.get('modelUrls', [])) | {
+            model if isinstance(model, str) else model['url'] for model in model_list})
+        self.save_model_category(category)
+        return self.get_model_categories()[category['name']]
+
+    def remove_models_from_category(self, category: Union[dict, str], model_list: List[Union[dict, str]]) -> dict:
+        """Remove models from a category while retaining the category when it becomes empty."""
+        if isinstance(category, str):
+            category = self.find_model_category(category)
+        urls = {model if isinstance(model, str) else model['url'] for model in model_list}
+        category['modelUrls'] = [url for url in category.get('modelUrls', []) if url not in urls]
+        self.save_model_category(category)
+        return self.get_model_categories()[category['name']]
+
     # --------------------------------------- recording methods -------------------------------------------------------
     def get_recordings(self) -> List[dict]:
         """
@@ -1165,6 +1235,40 @@ class CtbRec:
             raise ValueError('select at least one site to clear')
         return self.send_request(url='/cookies', data={'action': 'clear', 'sites': sites})
 
+    def get_webui_preferences(self) -> dict:
+        """Return the server-wide WebUI preferences and table column layouts."""
+        return self.send_request(url='/api/webui/preferences')
+
+    def update_webui_preferences(self, dark_mode: Optional[bool] = None,
+                                 iso_date: Optional[bool] = None,
+                                 tables: Optional[Mapping[str, Union[List[str], dict]]] = None) -> dict:
+        """
+        Partially update server-wide WebUI preferences.
+
+        Args:
+            dark_mode: Optional dark theme setting.
+            iso_date: Optional ISO 8601 date display setting.
+            tables: Optional mapping of table names (``models`` or ``recordings``)
+                to a column list, or to ``{'columns': [...]}``.
+        """
+        data = {}
+        if dark_mode is not None:
+            if not isinstance(dark_mode, bool):
+                raise ValueError('dark_mode must be a boolean')
+            data['darkMode'] = dark_mode
+        if iso_date is not None:
+            if not isinstance(iso_date, bool):
+                raise ValueError('iso_date must be a boolean')
+            data['isoDate'] = iso_date
+        if tables is not None:
+            table_data = {}
+            for name, layout in tables.items():
+                table_data[name] = {'columns': layout} if isinstance(layout, list) else layout
+            data['tables'] = table_data
+        if not data:
+            raise ValueError('at least one WebUI preference is required')
+        return self.send_request(url='/api/webui/preferences', data=data, method='PATCH')
+
     def get_settings(self) -> list:
         """
         Get current server settings.
@@ -1183,8 +1287,10 @@ class CtbRec:
         Update server config settings.
 
         Args:
-            settings: Either a dict of key-value pairs where keys must be valid ctbrec setting keys 
-                      and values must conform to expected type, or a list of ctbrec settings.
+            settings: Either a dict of key-value pairs where keys must be valid ctbrec setting keys
+                      and values must conform to expected type, or a list of ctbrec settings. For
+                      example, siteOnlineCheckConcurrency accepts a site-to-positive-integer map
+                      such as {'Stripchat': 3}.
                       
         Returns:
             List of server settings after updates have been applied.
@@ -1533,13 +1639,15 @@ class CtbRec:
         """Compute HMAC for request authentication."""
         return hmac.new(self.hmac_key, data.encode('utf-8'), hashlib.sha256).hexdigest()
 
-    def send_request(self, url: str, data: Optional[Union[dict, list]] = None) -> Union[dict, list]:
+    def send_request(self, url: str, data: Optional[Union[dict, list]] = None,
+                     method: Optional[str] = None) -> Union[dict, list]:
         """
         Send a request to the ctbrec server.
 
         Args:
             url: Relative URL for the request, e.g. '/rec'.
             data: Payload to send to server. If None then GET will be used rather than POST.
+            method: Optional HTTP method override, such as ``'PATCH'``.
             
         Returns:
             Server result data structure.
@@ -1550,10 +1658,15 @@ class CtbRec:
         data_str = '' if data is None else json.dumps(data)
         data_hmac = hmac.new(self.hmac_key, data_str.encode('utf-8'), hashlib.sha256).hexdigest()
         self.session.headers.update({'CTBREC-HMAC': data_hmac})
-        if data is None:
+        method = method or ('GET' if data is None else 'POST')
+        if method == 'GET':
             result = self.session.get(self.server_url + url)
-        else:
+        elif method == 'POST':
             result = self.session.post(self.server_url + url, data=data_str)
+        elif method == 'PATCH':
+            result = self.session.patch(self.server_url + url, data=data_str)
+        else:
+            raise ValueError(f'Unsupported HTTP method: {method}')
         if result.status_code == 200:
             result_json = json.loads(result.text)
             if isinstance(result_json, dict) and result_json.get('status') not in (None, "success"):
